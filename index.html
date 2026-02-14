@@ -153,7 +153,7 @@ function runSimulation() {
   let nTau = density * confinementTime;
   let lawsonThreshold = 1e20; // rough D-T ignition threshold (m⁻³·s)
 
-  let lawsonMessage = nTau > lawsonThreshold ?
+  let lawsonMessage = nTau >= lawsonThreshold ?
     "Lawson criterion approximately satisfied." :
     "Below Lawson ignition threshold.";
 
