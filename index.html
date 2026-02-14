@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>D–T Fusion Simulation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    label { display: block; margin-top: 10px; }
+    select, input { margin-left: 10px; }
+    #output { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>D–T Fusion Simulation</h1>
+  
+  <!-- Temperature -->
+  <label>
+    Temperature:
+    <input type="number" id="tempValue" value="10">
+    <select id="tempUnit">
+      <option value="keV">keV</option>
+    </select>
+  </label>
+  
+  <!-- Density -->
+  <label>
+    Density:
+    <input type="number" id="densityValue" value="1e14">
+    <select id="densityUnit">
+      <option value="cm3">particles/cm³</option>
+    </select>
+  </label>
+  
+  <!-- Confinement Time -->
+  <label>
+    Confinement Time:
+    <input type="number" id="timeValue" value="100">
+    <select id="timeUnit">
+      <option value="us">µs</option>
+      <option value="s">s</option>
+    </select>
+  </label>
+  
+  <button onclick="simulateFusion()">Run Simulation</button>
+  
+  <div id="output"></div>
+  
+  <script>
+    function simulateFusion() {
+      // Get inputs
+      let T = parseFloat(document.getElementById("tempValue").value); // keV
+      let n = parseFloat(document.getElementById("densityValue").value); // particles/cm³
+      let tau = parseFloat(document.getElementById("timeValue").value);
+      let timeUnit = document.getElementById("timeUnit").value;
+      
+      // Convert units
+      n = n * 1e6; // cm³ → m³
+      if (timeUnit === "us") tau *= 1e-6; // µs → s
+      
+      // Constants
+      let E = 17.6e6 * 1.602e-19; // J per reaction (17.6 MeV)
+      
+      // Approximate reactivity <σv> for D–T (m³/s) using a simple fit
+      // Peak around 10–20 keV, rough scaling
+      let sigma_v = 1e-22 * Math.pow(T,2) / (1 + T/25); 
+      
+      // Reaction rate per volume
+      let R = 0.25 * n * n * sigma_v; // reactions/m³/s
+      
+      // Energy per volume per time
+      let P = R * E; // J/m³/s
+      
+      // Total energy released over confinement time
+      let E_total = P * tau; // J/m³
+      
+      // Display results
+      document.getElementById("output").innerHTML =
+        "Fusion Power Density: " + P.toExponential(3) + " J/m³/s<br>" +
+        "Total Energy (per m³ over confinement): " + E_total.toExponential(3) + " J";
+    }
+  </script>
+</body>
+</html>
