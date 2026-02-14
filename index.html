@@ -1,189 +1,152 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>D-T Fusion Energy Balance Simulator</title>
+<title>D-T Fusion Ignition Simulator</title>
 
 <style>
-body {
-    margin: 0;
-    font-family: "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    color: white;
-}
-
-.container {
-    max-width: 900px;
-    margin: 50px auto;
-    padding: 30px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 15px;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-}
-
-h1 {
+  body {
+    background: #0b1020;
+    color: #e0f7ff;
+    font-family: Arial, sans-serif;
     text-align: center;
+    padding: 40px;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 5px;
+  }
+
+  .triumvirate {
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    opacity: 0.8;
     margin-bottom: 30px;
-}
+  }
 
-label {
-    display: block;
+  .container {
     margin-top: 20px;
-    font-weight: 600;
-}
+  }
 
-input, select {
-    width: 100%;
-    padding: 10px;
-    margin-top: 6px;
-    border-radius: 6px;
-    border: none;
-    font-size: 15px;
-}
+  input {
+    padding: 8px;
+    margin: 10px;
+    width: 200px;
+    text-align: center;
+    font-size: 1rem;
+  }
 
-button {
-    margin-top: 25px;
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    background: linear-gradient(to right, #00c6ff, #0072ff);
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
+  button {
+    padding: 10px 20px;
+    font-size: 1rem;
     cursor: pointer;
-    transition: 0.2s;
-}
+    background: #00d4ff;
+    border: none;
+    border-radius: 5px;
+  }
 
-button:hover {
-    transform: scale(1.02);
-}
-
-.results {
-    margin-top: 35px;
-    padding: 20px;
-    background: rgba(0,0,0,0.4);
-    border-radius: 10px;
-}
-
-.status {
-    font-size: 18px;
+  #result {
+    margin-top: 30px;
+    font-size: 1.2rem;
     font-weight: bold;
-    margin-top: 15px;
-}
-
-.ignite { color: #00ff9d; }
-.noignite { color: #ff5f5f; }
+  }
 </style>
 </head>
 
 <body>
 
+<h1>D-T Fusion Ignition Simulator</h1>
+<h2 class="triumvirate">Shoutout to Eternity, Infinity, Death</h2>
+
 <div class="container">
+  <div>
+    Temperature (keV):<br>
+    <input type="number" id="temp" value="30">
+  </div>
 
-<h1>D-T Fusion Energy Balance Simulator</h1>
+  <div>
+    Density (particles/cm³):<br>
+    <input type="number" id="density" value="1e14">
+  </div>
 
-<label>Temperature (keV)</label>
-<input type="number" id="temperature" value="20" min="1" step="any">
+  <div>
+    Confinement Time (seconds):<br>
+    <input type="number" id="tau" value="1">
+  </div>
 
-<label>Density (particles/cm³)</label>
-<input type="number" id="density" value="1e14" min="1" step="any">
+  <button onclick="checkIgnition()">Check Ignition</button>
 
-<label>Confinement Time</label>
-<input type="number" id="timeValue" value="1" min="0" step="any">
-
-<select id="timeUnit">
-    <option value="1e-9">Nanoseconds</option>
-    <option value="1e-6">Microseconds</option>
-    <option value="1e-3">Milliseconds</option>
-    <option value="1">Seconds</option>
-</select>
-
-<button onclick="runSimulation()">Run Simulation</button>
-
-<div class="results">
-    <p id="reactionRate"></p>
-    <p id="fusionPower"></p>
-    <p id="alphaPower"></p>
-    <p id="lossPower"></p>
-    <p id="totalEnergy"></p>
-    <p id="ignitionStatus" class="status"></p>
-</div>
-
+  <div id="result"></div>
 </div>
 
 <script>
 
-function runSimulation() {
+// Bosch–Hale D-T Reactivity (σv in m³/s, T in keV)
+function reactivityDT(T) {
 
-    let T = parseFloat(document.getElementById("temperature").value);
-    let dens_cm3 = parseFloat(document.getElementById("density").value);
-    let timeVal = parseFloat(document.getElementById("timeValue").value);
-    let timeUnit = parseFloat(document.getElementById("timeUnit").value);
+  const bg = 34.3827;
+  const mrc2 = 1124656;
 
-    if (!T || !dens_cm3 || timeVal < 0) {
-        alert("Enter valid positive numbers.");
-        return;
-    }
+  const C1 = 1.17302e-9;
+  const C2 = 1.51361e-2;
+  const C3 = 7.51886e-2;
+  const C4 = 4.60643e-3;
+  const C5 = 1.35000e-2;
+  const C6 = -1.06750e-4;
+  const C7 = 1.36600e-5;
 
-    let density = dens_cm3 * 1e6;   // cm³ → m³
-    let tau = timeVal * timeUnit;
+  let theta = T / (1 - (T * (C2 + T * (C4 + T * C6))) /
+                       (1 + T * (C3 + T * (C5 + T * C7))));
 
-    // Physical constants
-    const keV_to_J = 1.602e-16;
-    const E_total = 2.82e-12;      // 17.6 MeV in Joules
-    const alpha_fraction = 3.5 / 17.6;  // Only alpha heats plasma (~0.2)
+  let xi = Math.pow((bg * bg) / (4 * theta), 1/3);
 
-    // Reactivity approximation (valid mainly 10–30 keV)
-    let sigmaV = 1.1e-24 * T * T;
+  let sigmaV = C1 * theta *
+               Math.sqrt(xi / (mrc2 * T * T * T)) *
+               Math.exp(-3 * xi);
 
-    // Reaction rate (50/50 D-T plasma → n²/4)
-    let R = 0.25 * density * density * sigmaV;
+  return sigmaV;
+}
 
-    // Total fusion power density
-    let Pfusion = R * E_total;
+function checkIgnition() {
 
-    // Alpha heating power
-    let Palpha = Pfusion * alpha_fraction;
+  let T = parseFloat(document.getElementById("temp").value);
+  let dens_cm3 = parseFloat(document.getElementById("density").value);
+  let tau = parseFloat(document.getElementById("tau").value);
 
-    // Thermal energy density (D + T species)
-    let thermalEnergyDensity = 3 * density * T * keV_to_J;
+  const keV_to_J = 1.602e-16;
+  const E_alpha = 3.5e6 * 1.602e-19;
 
-    // Confinement loss power density
-    let Ploss = thermalEnergyDensity / tau;
+  // Convert density to m^-3
+  let n = dens_cm3 * 1e6;
 
-    // Total fusion energy over confinement time
-    let totalEnergy = Pfusion * tau;
+  // Real D-T reactivity
+  let sigmaV = reactivityDT(T);
 
-    // Ignition condition: alpha heating ≥ losses
-    let ignition = Palpha >= Ploss;
+  // 50/50 D-T mixture
+  let R = 0.25 * n * n * sigmaV;
 
-    document.getElementById("reactionRate").innerText =
-        "Reaction Rate: " + R.toExponential(3) + " reactions/s/m³";
+  // Alpha heating power density
+  let P_alpha = R * E_alpha;
 
-    document.getElementById("fusionPower").innerText =
-        "Total Fusion Power Density: " + Pfusion.toExponential(3) + " W/m³";
+  // Thermal energy density (D + T)
+  let thermalEnergyDensity = 3 * n * T * keV_to_J;
 
-    document.getElementById("alphaPower").innerText =
-        "Alpha Heating Power Density: " + Palpha.toExponential(3) + " W/m³";
+  // Loss power density
+  let P_loss = thermalEnergyDensity / tau;
 
-    document.getElementById("lossPower").innerText =
-        "Confinement Loss Power Density: " + Ploss.toExponential(3) + " W/m³";
+  let ignition = P_alpha >= P_loss;
 
-    document.getElementById("totalEnergy").innerText =
-        "Total Fusion Energy: " + totalEnergy.toExponential(3) + " J/m³";
+  let output = `
+    Reactivity (σv): ${sigmaV.toExponential(3)} m³/s<br>
+    Alpha Heating: ${P_alpha.toExponential(3)} W/m³<br>
+    Loss Power: ${P_loss.toExponential(3)} W/m³<br><br>
+    <span style="font-size:1.4rem;">
+    ${ignition ? "🔥 IGNITION ACHIEVED" : "❄️ Below Ignition"}
+    </span>
+  `;
 
-    let status = document.getElementById("ignitionStatus");
-
-    if (ignition) {
-        status.innerText = "Ignition Achieved (Alpha heating ≥ losses)";
-        status.className = "status ignite";
-    } else {
-        status.innerText = "Below Ignition (Losses exceed alpha heating)";
-        status.className = "status noignite";
-    }
+  document.getElementById("result").innerHTML = output;
 }
 
 </script>
