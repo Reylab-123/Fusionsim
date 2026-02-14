@@ -2,72 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>D-T Fusion Simulation</title>
+  <title>D-T Fusion Simulation (Physics-Based)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: auto;
-      padding: 20px;
-      background: #f4f6f8;
-    }
-
-    h1 {
-      text-align: center;
-    }
-
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-
-    input, select, button {
-      padding: 8px;
-      width: 100%;
-      margin-top: 5px;
-      box-sizing: border-box;
-    }
-
-    button {
-      margin-top: 20px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .results {
-      margin-top: 30px;
-      padding: 15px;
-      background: white;
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .error {
-      color: red;
-      font-weight: bold;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; background: #f8f9fa;}
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, select, button { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+    .results { margin-top: 25px; background: #fff; padding: 15px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .error { color: red; }
   </style>
 </head>
-
 <body>
 
-<h1>D-T Fusion Simulation</h1>
+<h1>D-T Fusion Simulation (Physics-Based)</h1>
 
 <label>Temperature (keV)</label>
-<input type="number" id="temperature" value="100" min="1" step="1">
+<input type="number" id="temperature" value="20" min="1" step="any">
 
 <label>Density (particles/cm³)</label>
 <input type="number" id="density" value="1e14" min="1" step="any">
 
 <label>Confinement Time</label>
-<input type="number" id="timeValue" value="100" min="0" step="any">
-
+<input type="number" id="timeValue" value="1" min="0" step="any">
 <select id="timeUnit">
   <option value="1e-9">nanoseconds</option>
-  <option value="1e-6" selected>microseconds</option>
+  <option value="1e-6">microseconds</option>
   <option value="1e-3">milliseconds</option>
   <option value="1">seconds</option>
 </select>
@@ -75,7 +34,6 @@
 <button onclick="runSimulation()">Run Simulation</button>
 
 <div class="results">
-  <h2>Results</h2>
   <p id="reactionRate"></p>
   <p id="powerOutput"></p>
   <p id="totalEnergy"></p>
@@ -84,92 +42,54 @@
 </div>
 
 <script>
-
-function getCrossSection(temp_keV) {
-
-  const table = {
-    10: 0.01e-28,
-    20: 0.1e-28,
-    30: 0.5e-28,
-    40: 1e-28,
-    50: 2e-28,
-    60: 3e-28,
-    70: 4e-28,
-    80: 4.5e-28,
-    90: 5e-28,
-    100: 5e-28
-  };
-
-  if (table[temp_keV]) return table[temp_keV];
-
-  let lower = Math.floor(temp_keV / 10) * 10;
-  let upper = Math.ceil(temp_keV / 10) * 10;
-
-  if (lower < 10) lower = 10;
-  if (upper > 100) upper = 100;
-
-  if (lower === upper) return table[lower];
-
-  let sigmaLower = table[lower];
-  let sigmaUpper = table[upper];
-  let fraction = (temp_keV - lower) / (upper - lower);
-
-  return sigmaLower + fraction * (sigmaUpper - sigmaLower);
-}
-
 function runSimulation() {
+  document.getElementById("errorMsg").innerText = "";
 
-  document.getElementById("errorMsg").innerHTML = "";
-
-  let temp_keV = parseFloat(document.getElementById("temperature").value);
-  let density_cm3 = parseFloat(document.getElementById("density").value);
-  let timeValue = parseFloat(document.getElementById("timeValue").value);
+  let T = parseFloat(document.getElementById("temperature").value);
+  let dens_cm3 = parseFloat(document.getElementById("density").value);
+  let timeVal = parseFloat(document.getElementById("timeValue").value);
   let timeUnit = parseFloat(document.getElementById("timeUnit").value);
 
-  if (isNaN(temp_keV) || isNaN(density_cm3) || isNaN(timeValue) ||
-      temp_keV <= 0 || density_cm3 <= 0 || timeValue < 0) {
-
-    document.getElementById("errorMsg").innerHTML = "Please enter valid positive numbers.";
+  if (!T || !dens_cm3 || timeVal < 0) {
+    document.getElementById("errorMsg").innerText = "Enter valid positive numbers.";
     return;
   }
 
-  let density = density_cm3 * 1e6; // cm³ → m³
-  let confinementTime = timeValue * timeUnit;
+  let density = dens_cm3 * 1e6; // cm³ → m³
+  let tau = timeVal * timeUnit;
 
-  // Constants
-  const E_reaction = 2.82e-12; // J (D-T fusion)
-  const m_deuteron = 3.34e-27; // kg
+  // Realistic reactivity approximation: <σv> ≈ 1.1×10^-24 * T^2
+  let sigmaV = 1.1e-24 * T * T; // m³/s
 
-  // Velocity (non-relativistic approximation)
-  let v = Math.sqrt(2 * temp_keV * 1.602e-16 / m_deuteron);
+  // Reaction rate per volume: R = n^2 <σv>
+  let R = density * density * sigmaV;
 
-  let sigma = getCrossSection(temp_keV);
+  // Energy per D-T reaction = 17.6 MeV ≈ 2.82e-12 J
+  const E_per_reaction = 2.82e-12;
 
-  let R = density * density * sigma * v;
-  let P = R * E_reaction;
-  let Etotal = P * confinementTime;
+  let powerDensity = R * E_per_reaction;
+  let totalEnergy = powerDensity * tau;
 
-  // Lawson Criterion Check (simplified)
-  let nTau = density * confinementTime;
-  let lawsonThreshold = 1e20; // rough D-T ignition threshold (m⁻³·s)
+  let nTau = density * tau;
 
-  let lawsonMessage = nTau >= lawsonThreshold ?
-    "Lawson criterion approximately satisfied." :
-    "Below Lawson ignition threshold.";
+  // Lawson threshold from Wikipedia: ~1.5×10^20 m^-3·s
+  const lawsonThreshold = 1.5e20;
 
-  document.getElementById("reactionRate").innerHTML =
-    "Reaction Rate: " + R.toExponential(3) + " reactions/s/m³";
+  document.getElementById("reactionRate").innerText =
+    "Reaction rate: " + R.toExponential(3) + " reactions/s/m³";
 
-  document.getElementById("powerOutput").innerHTML =
-    "Power Output: " + P.toExponential(3) + " W/m³";
+  document.getElementById("powerOutput").innerText =
+    "Power density: " + powerDensity.toExponential(3) + " W/m³";
 
-  document.getElementById("totalEnergy").innerHTML =
-    "Total Energy (over confinement): " + Etotal.toExponential(3) + " J/m³";
+  document.getElementById("totalEnergy").innerText =
+    "Total fusion energy (over confinement): " + totalEnergy.toExponential(3) + " J/m³";
 
-  document.getElementById("lawsonCheck").innerHTML =
-    "nτ = " + nTau.toExponential(3) + " (m⁻³·s) → " + lawsonMessage;
+  document.getElementById("lawsonCheck").innerText =
+    "n·τ = " + nTau.toExponential(3) + " m⁻³·s (" +
+    (nTau >= lawsonThreshold ? ">= ignition threshold" : "< ignition threshold") + ")";
 }
-
 </script>
+
 </body>
 </html>
+
