@@ -1,169 +1,152 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>D-T Fusion Ignition Simulator</title>
+<title>D-T Fusion Ignition Model</title>
 
 <style>
-  body {
-    background: #0b1020;
-    color: #e0f7ff;
-    font-family: Arial, sans-serif;
+body {
+    background: #0b0f1a;
+    color: #00eaff;
+    font-family: Consolas, monospace;
     text-align: center;
-    padding: 40px;
-  }
+}
 
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 5px;
-  }
+h1 {
+    color: #ffffff;
+    margin-top: 20px;
+}
 
-  .triumvirate {
-    font-size: 1.1rem;
+.shoutout {
+    margin-top: 5px;
+    font-size: 14px;
+    color: #aaaaaa;
     letter-spacing: 2px;
-    opacity: 0.8;
-    margin-bottom: 30px;
-  }
+}
 
-  input {
-    padding: 8px;
-    margin: 10px;
-    width: 220px;
-    text-align: center;
-    font-size: 1rem;
-  }
-
-  button {
-    padding: 10px 20px;
-    font-size: 1rem;
-    cursor: pointer;
-    background: #00d4ff;
-    border: none;
-    border-radius: 5px;
-  }
-
-  #result {
+.container {
     margin-top: 30px;
-    font-size: 1.05rem;
-  }
+}
+
+input {
+    padding: 6px;
+    margin: 5px;
+    width: 120px;
+    background: #111;
+    color: #00eaff;
+    border: 1px solid #00eaff;
+}
+
+button {
+    padding: 8px 15px;
+    margin-top: 10px;
+    background: #00eaff;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.result {
+    margin-top: 20px;
+    font-size: 16px;
+}
 </style>
 </head>
 
 <body>
 
 <h1>D-T Fusion Ignition Simulator</h1>
-<h2 class="triumvirate">Shoutout to Eternity, Infinity, Death</h2>
+<div class="shoutout">
+Shoutout to Eternity, Infinity, Death
+</div>
 
-<div>
-  <div>
-    Temperature (keV):<br>
-    <input type="number" id="temp" value="30">
-  </div>
+<div class="container">
+    <div>
+        Temperature (keV):
+        <input id="temp" value="10">
+    </div>
 
-  <div>
-    Density (particles/cm³):<br>
-    <input type="number" id="density" value="1e14">
-  </div>
+    <div>
+        Density (particles/cm³):
+        <input id="density" value="1e14">
+    </div>
 
-  <div>
-    Confinement Time (seconds):<br>
-    <input type="number" id="tau" value="1">
-  </div>
+    <div>
+        Confinement Time (s):
+        <input id="tau" value="1">
+    </div>
 
-  <button onclick="checkIgnition()">Check Ignition</button>
+    <button onclick="calculate()">Run Simulation</button>
 
-  <div id="result"></div>
+    <div class="result" id="output"></div>
 </div>
 
 <script>
 
-// Bosch–Hale D-T reactivity
-// Returns <σv> in m^3/s
+// Bosch-Hale 1992 D-T reactivity
 function reactivityDT(T) {
 
-  if (T <= 0) return 0;
+    if (T <= 0) return 0;
 
-  // Constants from Bosch & Hale (1992)
-  // These coefficients give σv in cm^3/s
-  const bg = 34.3827;
-  const mrc2 = 1124656;
+    const C1 = 1.17302e-9;
+    const C2 = 1.51361e-2;
+    const C3 = 7.51886e-2;
+    const C4 = 4.60643e-3;
+    const C5 = 1.35000e-2;
+    const C6 = -1.06750e-4;
+    const C7 = 1.36600e-5;
+    const B_G = 34.3827;
+    const m_rc2 = 1124656; // keV
 
-  const C1 = 1.17302e-9;
-  const C2 = 1.51361e-2;
-  const C3 = 7.51886e-2;
-  const C4 = 4.60643e-3;
-  const C5 = 1.35000e-2;
-  const C6 = -1.06750e-4;
-  const C7 = 1.36600e-5;
+    let numerator = T * (C2 + T * (C4 + T * C6));
+    let denominator = 1 + T * (C3 + T * (C5 + T * C7));
 
-  let numerator = T * (C2 + T * (C4 + T * C6));
-  let denominator = 1 + T * (C3 + T * (C5 + T * C7));
+    let theta = T / (1 - numerator / denominator);
 
-  let theta = T / (1 - numerator / denominator);
+    let xi = Math.pow(B_G * B_G / (4 * theta), 1/3);
 
-  if (theta <= 0) return 0;
+    let sigmaV =
+        C1 *
+        theta *
+        Math.sqrt(xi / (m_rc2 * Math.pow(T,3))) *
+        Math.exp(-3 * xi);
 
-  let xi = Math.pow((bg * bg) / (4 * theta), 1/3);
-
-  let sigma_cm3 =
-      C1 * theta *
-      Math.sqrt(xi / (mrc2 * Math.pow(T, 3))) *
-      Math.exp(-3 * xi);
-
-  // Convert cm^3/s → m^3/s
-  let sigma_m3 = sigma_cm3 * 1e-6;
-
-  if (!isFinite(sigma_m3) || sigma_m3 < 0) return 0;
-
-  return sigma_m3;
+    return sigmaV; // m^3/s
 }
 
-function checkIgnition() {
+function calculate() {
 
-  let T = parseFloat(document.getElementById("temp").value);
-  let dens_cm3 = parseFloat(document.getElementById("density").value);
-  let tau = parseFloat(document.getElementById("tau").value);
+    let T = parseFloat(document.getElementById("temp").value);
+    let n_cm = parseFloat(document.getElementById("density").value);
+    let tau = parseFloat(document.getElementById("tau").value);
 
-  const keV_to_J = 1.602e-16;
+    // Convert density from cm^-3 to m^-3
+    let n = n_cm * 1e6;
 
-  const E_alpha = 3.5e6 * 1.602e-19;
-  const E_total = 17.6e6 * 1.602e-19;
+    let sigmaV = reactivityDT(T);
 
-  // Convert density to m^-3
-  let n = dens_cm3 * 1e6;
+    // Reaction rate per m^3
+    let reactionRate = 0.25 * n * n * sigmaV;
 
-  // Reactivity
-  let sigmaV = reactivityDT(T);
+    // Energy per D-T reaction (17.6 MeV)
+    const E_fusion = 17.6e6 * 1.602e-19; // Joules
 
-  // Reaction rate (50/50 D-T)
-  let reactionRate = 0.25 * n * n * sigmaV;
+    // Power density (W/m^3)
+    let powerDensity = reactionRate * E_fusion;
 
-  // Fusion power
-  let P_fusion = reactionRate * E_total;
+    // Plasma energy density
+    let energyDensity = 3 * n * T * 1.602e-16;
 
-  // Alpha heating
-  let P_alpha = reactionRate * E_alpha;
+    // Loss power density
+    let loss = energyDensity / tau;
 
-  // Thermal energy density
-  let thermalEnergyDensity = 3 * n * T * keV_to_J;
+    let ignition = powerDensity > loss;
 
-  // Loss power
-  let P_loss = thermalEnergyDensity / tau;
-
-  let ignition = P_alpha >= P_loss;
-
-  let output = `
-    Reactivity (σv): ${sigmaV.toExponential(3)} m³/s<br>
-    Reaction Rate: ${reactionRate.toExponential(3)} reactions/m³·s<br>
-    Total Fusion Power: ${P_fusion.toExponential(3)} W/m³<br>
-    Alpha Heating Power: ${P_alpha.toExponential(3)} W/m³<br>
-    Loss Power: ${P_loss.toExponential(3)} W/m³<br><br>
-    <span style="font-size:1.3rem; font-weight:bold;">
-    ${ignition ? "🔥 IGNITION ACHIEVED" : "❄️ Below Ignition"}
-    </span>
-  `;
-
-  document.getElementById("result").innerHTML = output;
+    document.getElementById("output").innerHTML =
+        "Reactivity &lt;σv&gt;: " + sigmaV.toExponential(3) + " m³/s<br>" +
+        "Reaction Rate: " + reactionRate.toExponential(3) + " reactions/m³/s<br>" +
+        "Fusion Power Density: " + powerDensity.toExponential(3) + " W/m³<br>" +
+        "Loss Power Density: " + loss.toExponential(3) + " W/m³<br><br>" +
+        (ignition ? "🔥 Ignition Achieved" : "❄ No Ignition");
 }
 
 </script>
