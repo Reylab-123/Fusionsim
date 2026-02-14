@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>D-T Fusion Ignition Simulator (Threshold Model)</title>
+<title>D-T Fusion Ignition Simulator (Wikipedia Values)</title>
 
 <style>
   body {
@@ -12,9 +12,7 @@
     text-align: center;
     padding: 30px;
   }
-  h1 {
-    margin-bottom: 5px;
-  }
+  h1 { margin-bottom: 5px; }
   .shoutout {
     font-size: 14px;
     color: #a0a0a0;
@@ -24,7 +22,7 @@
   input {
     padding: 8px;
     margin: 6px;
-    width: 180px;
+    width: 200px;
     background: #111;
     color: #00eaff;
     border: 1px solid #00eaff;
@@ -60,52 +58,58 @@
   Confinement Time (s):<br>
   <input id="tau" value="1"><br>
 
-  <button onclick="simulate()">Run</button>
+  <button onclick="runSimulation()">Run</button>
 
   <div class="results" id="output"></div>
 </div>
 
 <script>
-// Constants
-const LAWSON_THRESHOLD = 1.5e20;  // m^-3·s from Wikipedia standard
-const keV_to_J = 1.602e-16;
-const E_reaction = 17.6e6 * 1.602e-19; // J per D-T reaction
+// Wikipedia‐based threshold
+const LAWSON_TRIPLE_PRODUCT = 1.5e21; // keV·m^-3·s
 
-function simulate() {
+// Physical constants from fusion data
+const E_DT_TOTAL = 17.6e6 * 1.602e-19; // J per reaction (17.6 MeV)
+const alphaFraction = 3.5/17.6;        // fraction of energy heating the plasma
+
+// Approximate reactivity curve for demonstration (not directly from Wiki)
+function approximateSigmaV(T) {
+  return 1e-24 * (T*T) / (1 + 0.012*(T*T));
+}
+
+function runSimulation() {
+
   let T = parseFloat(document.getElementById("temp").value);
   let dens_cm3 = parseFloat(document.getElementById("density").value);
   let tau = parseFloat(document.getElementById("tau").value);
 
-  if (!T || !dens_cm3 || !tau || T < 0 || dens_cm3 < 0 || tau < 0) {
-    document.getElementById("output").innerText = "Please enter valid positive values.";
+  if (!T || !dens_cm3 || !tau) {
+    document.getElementById("output").innerText = "Enter valid positive values.";
     return;
   }
 
-  // Convert density to per m^3
+  // convert density to per m3
   let n = dens_cm3 * 1e6;
 
-  // Compute Lawson product
-  let nTau = n * tau;
+  // compute triple product
+  let tripleProduct = n * T * tau;
 
-  // Simplified D-T reactivity approximation
-  // (This is NOT high-accuracy physics, but a rough trend.)
-  let sigmaV = 1e-24 * (T*T) / (1 + 0.012*(T*T)); // m^3/s
-
-  // Reaction rate per volume
+  // compute approximate reaction rate
+  let sigmaV = approximateSigmaV(T);
   let reactionRate = 0.25 * n * n * sigmaV;
+  let totalPower = reactionRate * E_DT_TOTAL;
+  let alphaPower = totalPower * alphaFraction;
 
-  // Fusion power density
-  let powerDensity = reactionRate * E_reaction;
-
-  let ignition = (nTau >= LAWSON_THRESHOLD);
+  // ignition check from Wikipedia criterion
+  let ignition = tripleProduct >= LAWSON_TRIPLE_PRODUCT;
 
   document.getElementById("output").innerHTML =
-      `<strong>Lawson Product (n·τ):</strong> ${nTau.toExponential(3)} m⁻³·s<br>` +
-      `<strong>Threshold for Ignition:</strong> ${LAWSON_THRESHOLD.toExponential(3)} m⁻³·s<br>` +
-      `<strong>Status:</strong> ${ignition ? "🔥 IGNITION (above threshold)" : "❄ BELOW IGNITION"}<br><br>` +
-      `<strong>Reactivity (approx):</strong> ${sigmaV.toExponential(3)} m³/s<br>` +
+      `<strong>Triple Product (n·T·τ):</strong> ${tripleProduct.toExponential(3)} keV·m⁻³·s<br>` +
+      `<strong>Threshold (Wikipedia):</strong> ${LAWSON_TRIPLE_PRODUCT.toExponential(3)} keV·m⁻³·s<br>` +
+      `<strong>Status:</strong> ${ignition ? "🔥 IGNITION" : "❄ NO IGNITION"}<br><br>` +
+      `<strong>Approx. Reactivity &lt;σv&gt;:</strong> ${sigmaV.toExponential(3)} m³/s<br>` +
       `<strong>Reaction Rate:</strong> ${reactionRate.toExponential(3)} reactions/m³·s<br>` +
-      `<strong>Fusion Power Density:</strong> ${powerDensity.toExponential(3)} W/m³`;
+      `<strong>Total Fusion Power Density:</strong> ${totalPower.toExponential(3)} W/m³<br>` +
+      `<strong>Alpha Heating Power Density:</strong> ${(alphaPower).toExponential(3)} W/m³`;
 }
 </script>
 
