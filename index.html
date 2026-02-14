@@ -14,7 +14,7 @@ body {
 }
 
 .container {
-    max-width: 850px;
+    max-width: 900px;
     margin: 50px auto;
     padding: 30px;
     background: rgba(255,255,255,0.08);
@@ -49,7 +49,6 @@ button {
     padding: 12px;
     border-radius: 8px;
     border: none;
-    background: #00c6ff;
     background: linear-gradient(to right, #00c6ff, #0072ff);
     color: white;
     font-size: 16px;
@@ -75,13 +74,8 @@ button:hover {
     margin-top: 15px;
 }
 
-.ignite {
-    color: #00ff9d;
-}
-
-.noignite {
-    color: #ff5f5f;
-}
+.ignite { color: #00ff9d; }
+.noignite { color: #ff5f5f; }
 </style>
 </head>
 
@@ -112,6 +106,7 @@ button:hover {
 <div class="results">
     <p id="reactionRate"></p>
     <p id="fusionPower"></p>
+    <p id="alphaPower"></p>
     <p id="lossPower"></p>
     <p id="totalEnergy"></p>
     <p id="ignitionStatus" class="status"></p>
@@ -133,23 +128,27 @@ function runSimulation() {
         return;
     }
 
-    let density = dens_cm3 * 1e6;  // cm³ → m³
+    let density = dens_cm3 * 1e6;   // cm³ → m³
     let tau = timeVal * timeUnit;
 
     // Physical constants
-    const E_fusion = 2.82e-12;  // J per D-T reaction (17.6 MeV)
     const keV_to_J = 1.602e-16;
+    const E_total = 2.82e-12;      // 17.6 MeV in Joules
+    const alpha_fraction = 3.5 / 17.6;  // Only alpha heats plasma (~0.2)
 
-    // Reactivity approximation <σv>
+    // Reactivity approximation (valid mainly 10–30 keV)
     let sigmaV = 1.1e-24 * T * T;
 
-    // Reaction rate density
-    let R = density * density * sigmaV;
+    // Reaction rate (50/50 D-T plasma → n²/4)
+    let R = 0.25 * density * density * sigmaV;
 
-    // Fusion power density
-    let Pfusion = R * E_fusion;
+    // Total fusion power density
+    let Pfusion = R * E_total;
 
-    // Thermal energy density (3 n kT)
+    // Alpha heating power
+    let Palpha = Pfusion * alpha_fraction;
+
+    // Thermal energy density (D + T species)
     let thermalEnergyDensity = 3 * density * T * keV_to_J;
 
     // Confinement loss power density
@@ -158,15 +157,17 @@ function runSimulation() {
     // Total fusion energy over confinement time
     let totalEnergy = Pfusion * tau;
 
-    // Ignition condition
-    let ignition = Pfusion >= Ploss;
+    // Ignition condition: alpha heating ≥ losses
+    let ignition = Palpha >= Ploss;
 
-    // Display values
     document.getElementById("reactionRate").innerText =
         "Reaction Rate: " + R.toExponential(3) + " reactions/s/m³";
 
     document.getElementById("fusionPower").innerText =
-        "Fusion Power Density: " + Pfusion.toExponential(3) + " W/m³";
+        "Total Fusion Power Density: " + Pfusion.toExponential(3) + " W/m³";
+
+    document.getElementById("alphaPower").innerText =
+        "Alpha Heating Power Density: " + Palpha.toExponential(3) + " W/m³";
 
     document.getElementById("lossPower").innerText =
         "Confinement Loss Power Density: " + Ploss.toExponential(3) + " W/m³";
@@ -177,10 +178,10 @@ function runSimulation() {
     let status = document.getElementById("ignitionStatus");
 
     if (ignition) {
-        status.innerText = "Ignition Achieved (Fusion power ≥ losses)";
+        status.innerText = "Ignition Achieved (Alpha heating ≥ losses)";
         status.className = "status ignite";
     } else {
-        status.innerText = "Below Ignition (Losses exceed fusion power)";
+        status.innerText = "Below Ignition (Losses exceed alpha heating)";
         status.className = "status noignite";
     }
 }
