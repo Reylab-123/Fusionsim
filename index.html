@@ -35,6 +35,7 @@ function boschHaleSigmaV(TkeV) {
   const c4 = 4.606e-3;
   const c5 = 1.35e-2;
   const c6 = -1.067e-4;
+  let TMeV = TkeV / 1000.0; // convert keV → MeV
 
   // Polynomial in T
   let poly = c1 + c2*TkeV + c3*TkeV**2 + c4*TkeV**3 + c5*TkeV**4 + c6*TkeV**5;
