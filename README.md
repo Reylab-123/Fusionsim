@@ -1,4 +1,4 @@
-This project is a browser‑based fusion ignition calculator built with HTML, CSS, and JavaScript. It allows users to explore the conditions required for deuterium–tritium (D–T) fusion ignition using the Bosch–Hale parametrization for realistic reactivity.
+This project is a browser‑based fusion ignition calculator built with HTML, CSS, and JavaScript. It allows users to explore the conditions required for deuterium–tritium (D–T) fusion ignition using the Bosch–Hale parametrization for realistic reactivity accurate from 0.2 KeV upto 100 KeV.
 
 No more guesswork — the simulator shows whether a chosen plasma configuration meets the ignition threshold, and provides reaction rate and fusion power density estimates.
 
@@ -47,5 +47,6 @@ Reactivity (
 Reaction rate
 
 Fusion power density
+Net Power Balance.
 
 
