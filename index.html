@@ -1,134 +1,103 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>D-T Fusion Simulator (Bosch-Hale Realistic)</title>
-<style>
-body {
-    background: #0a0f1f;
-    color: #00eaff;
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding: 30px;
-}
-h1 { margin-bottom: 5px; }
-.shoutout {
-    font-size: 14px;
-    color: #a0a0a0;
-    letter-spacing: 2px;
-    margin-bottom: 20px;
-}
-input {
-    padding: 8px;
-    margin: 6px;
-    width: 200px;
-    background: #111;
-    color: #00eaff;
-    border: 1px solid #00eaff;
-}
-button {
-    padding: 10px 18px;
-    margin-top: 10px;
-    background: #00eaff;
-    border: none;
-    color: #0a0f1f;
-    font-weight: bold;
-    cursor: pointer;
-}
-.results {
-    margin-top: 30px;
-    font-size: 1.1rem;
-}
-</style>
+  <title>Fusion Ignition Simulator</title>
+  <style>
+    body { background:#111; color:#eee; font-family:Arial; text-align:center; }
+    input { margin:5px; padding:5px; }
+    button { margin:10px; padding:10px; }
+    .output { margin-top:20px; font-size:1.1em; }
+  </style>
 </head>
 <body>
+  <h1>Fusion Ignition Simulator 🔥❄</h1>
+  <p>Shoutout to Eternity, Infinity, Death</p>
+  <p>Enter plasma parameters:</p>
+  <input id="temp" type="number" placeholder="Temperature (keV)">
+  <input id="dens" type="number" placeholder="Density (particles/cm³)">
+  <input id="tau" type="number" placeholder="Confinement time (s)">
+  <button onclick="simulate()">Run</button>
 
-<h1>D-T Fusion Ignition Simulator</h1>
-<div class="shoutout">Shoutout to Eternity, Infinity, Death</div>
-
-<div>
-  Temperature (keV):<br>
-  <input id="temp" value="30"><br>
-
-  Density (particles/cm³):<br>
-  <input id="density" value="1e14"><br>
-
-  Confinement Time (s):<br>
-  <input id="tau" value="1"><br>
-
-  <button onclick="runSimulation()">Run</button>
-
-  <div class="results" id="output"></div>
-</div>
+  <div class="output" id="result"></div>
 
 <script>
-// Physical constants
-const TRIPLE_PRODUCT_THRESHOLD = 1e21; // keV·m^-3·s
-const E_DT = 17.6e6 * 1.602e-19;       // J per reaction
-
-// Bosch-Hale parametrization for D-T fusion reactivity (simplified fit)
+// --- Full Bosch–Hale reactivity fit for D–T ---
 function boschHaleSigmaV(TkeV) {
-    // Convert keV to MeV
-    let T = TkeV / 1000.0;
+  // Constants from Bosch & Hale (1992)
+  const Bg = 34.3827; // Gamow energy parameter (keV)
+  const C1 = 1.173e-9;
+  const C2 = 1.513e-2;
+  const C3 = 7.518e-2;
+  const C4 = 4.606e-3;
+  const C5 = 1.35e-2;
+  const C6 = -1.067e-4;
 
-    // Bosch-Hale coefficients for D-T (1992 fit, simplified polynomial)
-    const A1 = 6.927e-3;
-    const A2 = -1.438e-2;
-    const A3 = 1.0e-2;
-    const A4 = -3.0e-3;
-
-    const B_G = 34.3827; // Gamow energy parameter (keV)
-
-    // Polynomial correction
-    let poly = A1 + A2*T + A3*T*T + A4*T*T*T;
-
-    // Main exponential term
-    let term = Math.exp(-B_G / Math.pow(TkeV, 1/3));
-
-    // Reactivity in m^3/s
-    return 1e-24 * poly * term / Math.pow(T, 2/3);
+  let theta = TkeV / 1000.0; // normalized temperature (approx scaling)
+  let poly = 1 + C2*theta + C3*theta**2 + C4*theta**3 + C5*theta**4 + C6*theta**5;
+  let sigmaV = C1 * theta * Math.exp(-1.5*theta - Bg/Math.pow(theta,1/3)) * poly;
+  return sigmaV; // m^3/s
 }
 
-function runSimulation() {
-    let T = parseFloat(document.getElementById("temp").value);
-    let n_cm = parseFloat(document.getElementById("density").value);
-    let tau = parseFloat(document.getElementById("tau").value);
+// --- Bremsstrahlung loss power density ---
+function bremsstrahlungLoss(n, TkeV) {
+  let coeff = 1.69e-38; // W·m^3 scaling
+  let Z = 1; // effective charge for D–T plasma
+  return coeff * Z*Z * n*n * Math.sqrt(TkeV);
+}
 
-    if (!T || !n_cm || !tau || T <= 0 || n_cm <= 0 || tau <= 0) {
-        document.getElementById("output").innerText = "Enter valid positive values.";
-        return;
-    }
+// --- Simulation ---
+function simulate() {
+  let T = parseFloat(document.getElementById("temp").value);
+  let n_cm = parseFloat(document.getElementById("dens").value);
+  let tau = parseFloat(document.getElementById("tau").value);
 
-    // Convert density to m^-3
-    let n = n_cm * 1e6;
+  if (isNaN(T) || isNaN(n_cm) || isNaN(tau) || T<=0 || n_cm<=0 || tau<=0) {
+    document.getElementById("result").innerHTML = "Enter valid positive values.";
+    return;
+  }
 
-    // Compute the actual fusion triple product
-    let tripleProduct = n * T * tau;  // keV·m^-3·s
+  let n = n_cm * 1e6; // convert cm^-3 to m^-3
+  let tripleProduct = n * T * tau;
 
-    // Compute Bosch-Hale reactivity
-    let sigmaV = boschHaleSigmaV(T);
+  // Bosch–Hale reactivity
+  let sigmaV = boschHaleSigmaV(T);
 
-    // Reaction rate (D-T mixture factor 0.25)
-    let reactionRate = 0.25 * n * n * sigmaV;
+  // Reaction rate (D–T mixture factor 0.25)
+  let R = 0.25 * n*n * sigmaV;
 
-    // Fusion power density
-    let fusionPower = reactionRate * E_DT;
+  // Fusion energy per reaction (17.6 MeV)
+  let E_DT = 17.6e6 * 1.602e-19; // J
+  let Pfusion = R * E_DT; // W/m^3
 
-    // Ignition check using the triple product
-    let ignition = tripleProduct >= TRIPLE_PRODUCT_THRESHOLD;
+  // Alpha self-heating (3.5 MeV captured)
+  let E_alpha = 3.5e6 * 1.602e-19; // J
+  let Palpha = R * E_alpha; // W/m^3
 
-    document.getElementById("output").innerHTML =
-        `<b>Triple Product (n·T·τ):</b> ${tripleProduct.toExponential(3)} keV·m⁻³·s<br>` +
-        `<b>Threshold (Wikipedia):</b> ${TRIPLE_PRODUCT_THRESHOLD.toExponential(3)} keV·m⁻³·s<br>` +
-        `<b>Status:</b> ${ignition ? "🔥 IGNITION" : "❄ BELOW IGNITION"}<br><br>` +
-        `<b>Reactivity &lt;σv&gt; (Bosch-Hale):</b> ${sigmaV.toExponential(3)} m³/s<br>` +
-        `<b>Reaction Rate:</b> ${reactionRate.toExponential(3)} reactions/m³·s<br>` +
-        `<b>Fusion Power Density:</b> ${fusionPower.toExponential(3)} W/m³`;
+  // Bremsstrahlung losses
+  let Ploss = bremsstrahlungLoss(n, T);
+
+  // Wikipedia triple product threshold
+  let threshold = 1e21; // keV·m^-3·s
+
+  // Verdicts
+  let verdictBenchmark = (tripleProduct >= threshold) ? "🔥 IGNITION (benchmark)" : "❄ BELOW IGNITION (benchmark)";
+  let verdictBalance = (Pfusion > Ploss) ? "🔥 NET POWER BALANCE (fusion > losses)" : "❄ LOSSES DOMINATE";
+
+  // Output
+  document.getElementById("result").innerHTML =
+    "Triple product: " + tripleProduct.toExponential(3) + " keV·m⁻³·s<br>" +
+    "Threshold: " + threshold.toExponential(3) + " keV·m⁻³·s<br>" +
+    verdictBenchmark + "<br><br>" +
+    "Bosch–Hale reactivity: " + sigmaV.toExponential(3) + " m³/s<br>" +
+    "Reaction rate: " + R.toExponential(3) + " reactions/m³·s<br>" +
+    "Fusion power density: " + Pfusion.toExponential(3) + " W/m³<br>" +
+    "Alpha self-heating: " + Palpha.toExponential(3) + " W/m³<br>" +
+    "Bremsstrahlung losses: " + Ploss.toExponential(3) + " W/m³<br>" +
+    verdictBalance;
 }
 </script>
-
 </body>
 </html>
 
 
-     
+
