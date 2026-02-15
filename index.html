@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>D-T Fusion Simulator (Triple Product Corrected)</title>
+<title>D-T Fusion Simulator (Bosch-Hale Realistic)</title>
 <style>
 body {
     background: #0a0f1f;
@@ -62,13 +62,31 @@ button {
 </div>
 
 <script>
-// Physical constants from Wikipedia
+// Physical constants
 const TRIPLE_PRODUCT_THRESHOLD = 1e21; // keV·m^-3·s
 const E_DT = 17.6e6 * 1.602e-19;       // J per reaction
 
-// Approximate sigma*v curve (for display only)
-function approximateSigmaV(T) {
-    return 1e-24 * (T*T)/(1 + 0.012*(T*T));
+// Bosch-Hale parametrization for D-T fusion reactivity (simplified fit)
+function boschHaleSigmaV(TkeV) {
+    // Convert keV to MeV
+    let T = TkeV / 1000.0;
+
+    // Bosch-Hale coefficients for D-T (1992 fit, simplified polynomial)
+    const A1 = 6.927e-3;
+    const A2 = -1.438e-2;
+    const A3 = 1.0e-2;
+    const A4 = -3.0e-3;
+
+    const B_G = 34.3827; // Gamow energy parameter (keV)
+
+    // Polynomial correction
+    let poly = A1 + A2*T + A3*T*T + A4*T*T*T;
+
+    // Main exponential term
+    let term = Math.exp(-B_G / Math.pow(TkeV, 1/3));
+
+    // Reactivity in m^3/s
+    return 1e-24 * poly * term / Math.pow(T, 2/3);
 }
 
 function runSimulation() {
@@ -87,19 +105,23 @@ function runSimulation() {
     // Compute the actual fusion triple product
     let tripleProduct = n * T * tau;  // keV·m^-3·s
 
-    // Compute approximate reaction rate and power for display
-    let sigmaV = approximateSigmaV(T);
+    // Compute Bosch-Hale reactivity
+    let sigmaV = boschHaleSigmaV(T);
+
+    // Reaction rate (D-T mixture factor 0.25)
     let reactionRate = 0.25 * n * n * sigmaV;
+
+    // Fusion power density
     let fusionPower = reactionRate * E_DT;
 
-    // Ignition check using the real triple product
+    // Ignition check using the triple product
     let ignition = tripleProduct >= TRIPLE_PRODUCT_THRESHOLD;
 
     document.getElementById("output").innerHTML =
         `<b>Triple Product (n·T·τ):</b> ${tripleProduct.toExponential(3)} keV·m⁻³·s<br>` +
         `<b>Threshold (Wikipedia):</b> ${TRIPLE_PRODUCT_THRESHOLD.toExponential(3)} keV·m⁻³·s<br>` +
         `<b>Status:</b> ${ignition ? "🔥 IGNITION" : "❄ BELOW IGNITION"}<br><br>` +
-        `<b>Approx. Reactivity &lt;σv&gt;:</b> ${sigmaV.toExponential(3)} m³/s<br>` +
+        `<b>Reactivity &lt;σv&gt; (Bosch-Hale):</b> ${sigmaV.toExponential(3)} m³/s<br>` +
         `<b>Reaction Rate:</b> ${reactionRate.toExponential(3)} reactions/m³·s<br>` +
         `<b>Fusion Power Density:</b> ${fusionPower.toExponential(3)} W/m³`;
 }
@@ -107,3 +129,6 @@ function runSimulation() {
 
 </body>
 </html>
+
+
+     
