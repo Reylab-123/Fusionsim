@@ -41,7 +41,7 @@ function boschHaleSigmaV(TkeV) {
   let poly = c1 + c2*TMeV + c3*TMeV**2 + c4*TMeV**3 + c5*TMeV**4 + c6*TMeV**5;
 
   // Reactivity (m^3/s)
-  let sigmaV = (poly / Math.pow(TMeV, 2/3)) * Math.exp(-b / Math.pow(TMeV, 1/3));
+  let sigmaV = (poly / Math.pow(TMeV, 2/3)) * Math.exp(-b / Math.pow(TkeV, 1/3));
   return sigmaV;
 }
 
