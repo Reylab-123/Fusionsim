@@ -48,7 +48,7 @@ function boschHale_DT(T) {
   return C1 *
          theta *
          Math.sqrt(xi / (mrc2 * Math.pow(T, 3))) *
-         Math.exp(-3 * xi);
+         Math.exp(-3 * xi) * 1e-6;
 }
 
 // Test
