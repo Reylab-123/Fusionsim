@@ -77,7 +77,7 @@ function simulate() {
   let tripleProduct = n * T * tau;
 
   // Bosch–Hale reactivity
-  let sigmaV = boschHaleSigmaV(T);
+  let sigmaV = boschHale_DT(T);
 
   // Reaction rate (D–T mixture factor 0.25)
   let R = 0.25 * n*n * sigmaV;
